@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RepoSage</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>RepoSage</h1>
+    <p class="subtitle">Ask questions about a public GitHub repository.</p>
+
+    <section>
+      <input id="repo-url" type="text" placeholder="https://github.com/pallets/flask">
+      <button id="index-btn">Index Repository</button>
+    </section>
+
+    <section>
+      <input id="question" type="text" placeholder="How does routing work?" disabled>
+      <button id="ask-btn" disabled>Ask</button>
+    </section>
+
+    <p id="status"></p>
+    <p id="error" class="error"></p>
+
+    <div id="answer"></div>
+
+    <div id="sources-box" hidden>
+      <h2>Sources</h2>
+      <ul id="sources"></ul>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

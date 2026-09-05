@@ -1,0 +1,18 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+
+# Runtime artifacts
+temp_repo/
+cloned_repos/
+.cache/
+models/
+*.faiss
+
+# OS
+.DS_Store
