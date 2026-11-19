@@ -2,6 +2,7 @@
 
 import fnmatch
 import os
+import re
 import shutil
 
 from git import Repo
@@ -27,6 +28,23 @@ EXCLUDED_DIRECTORIES = [
 
 # Files bigger than this are skipped (bytes).
 MAX_FILE_SIZE_BYTES = 100 * 1024
+
+# A Repository with more indexable files than this is rejected.
+MAX_FILES = 500
+
+GITHUB_URL_RE = re.compile(r"^https://github\.com/([\w.-]+)/([\w.-]+?)(?:\.git)?/?$")
+
+
+class RepoError(ValueError):
+    """The URL is not acceptable or the Repository is too big (HTTP 400)."""
+
+
+def validate_repo_url(url):
+    """Accept only https://github.com/owner/name. Returns (owner, name)."""
+    m = GITHUB_URL_RE.match((url or "").strip())
+    if not m:
+        raise RepoError("Enter a public GitHub URL like https://github.com/owner/name")
+    return m.group(1), m.group(2)
 
 
 def clone_repo(repo_url):
@@ -76,4 +94,8 @@ def collect_files(repo_path):
             relative_path = os.path.relpath(full_path, repo_path)
             collected.append((relative_path, text))
 
+    if len(collected) > MAX_FILES:
+        raise RepoError(
+            f"This repository has {len(collected)} indexable files; the limit is {MAX_FILES}."
+        )
     return collected
