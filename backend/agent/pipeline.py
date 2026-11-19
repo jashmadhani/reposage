@@ -6,16 +6,17 @@ state. So the instruction texts below contain no other braces, and the user's
 Question (which may contain braces) travels in the user message instead.
 """
 
+import os
 import time
 
 from google.adk.agents import LlmAgent, LoopAgent, SequentialAgent
+from google.adk.models import Gemini
 from google.adk.runners import InMemoryRunner
-from google.adk.tools import exit_loop
 from google.genai import types
 
-from agent.tools import list_files, read_file_lines, search_code
+from agent.tools import exit_loop, list_files, read_file_lines, search_code
 
-MODEL = "gemini-2.5-flash"
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 APP_NAME = "reposage"
 # Estimated price in USD per million tokens (gemini-2.5-flash). Shown as an estimate.
 PRICE_IN_PER_M = 0.30
@@ -24,17 +25,20 @@ PRICE_OUT_PER_M = 2.50
 RESEARCHER_INSTRUCTION = (
     "You are the Researcher. Gather Evidence from the indexed repository to "
     "answer the user's request. Call search_code with 2 to 4 different queries, "
-    "then use read_file_lines to confirm the exact lines. Finish by listing "
-    "each useful excerpt as path:start-end followed by what it shows. Never "
-    "invent paths or line numbers."
+    "then use read_file_lines to confirm the exact lines. Do NOT write the "
+    "answer yourself. Finish with an evidence list only: one line per "
+    "excerpt, written path:start-end - what it shows. Never invent paths or "
+    "line numbers."
 )
 
 WRITER_INSTRUCTION = (
     "You are the Writer. Write the answer to the user's request using ONLY "
     "this Evidence:\n{evidence}\n\n"
-    "Every claim must end with a Citation written path:start-end that appears "
-    "in the Evidence. If the Evidence does not answer the request, say: Not "
-    "found in this repository.\n"
+    "Write the answer in your own words, not a copy of the Evidence. Every "
+    "claim must end with a Citation written path:start-end that appears in "
+    "the Evidence. An answer without Citations will be rejected. If the "
+    "Evidence does not answer the request, say: Not found in this "
+    "repository.\n"
     "Reviewer feedback to address, if any: {review?}"
 )
 
@@ -51,9 +55,10 @@ ISSUE_RESEARCHER_INSTRUCTION = (
     "You are the Researcher. The user message is a GitHub Issue. Gather "
     "Evidence from the indexed repository about where and why the problem "
     "happens and which tests cover it. Call search_code with 2 to 4 different "
-    "queries, then use read_file_lines to confirm the exact lines. Finish by "
-    "listing each useful excerpt as path:start-end followed by what it shows. "
-    "Never invent paths or line numbers."
+    "queries, then use read_file_lines to confirm the exact lines. Do NOT write "
+    "the plan yourself. Finish with an evidence list only: one line per "
+    "excerpt, written path:start-end - what it shows. Never invent paths or "
+    "line numbers."
 )
 
 ISSUE_WRITER_INSTRUCTION = (
@@ -67,8 +72,36 @@ ISSUE_WRITER_INSTRUCTION = (
 )
 
 
+# Google's models return 503 during demand spikes and 429 on the free tier;
+# both are usually gone within seconds, so retry with backoff.
+RETRY = types.HttpRetryOptions(
+    attempts=5, initial_delay=2, max_delay=20, http_status_codes=[503]  # 429 is handled by key rotation
+)
+
+
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+
+
+def llm_provider() -> str:
+    """LLM_PROVIDER wins; otherwise Groq if a Groq key is set, else Gemini."""
+    explicit = os.getenv("LLM_PROVIDER")
+    if explicit:
+        return explicit.lower()
+    return "groq" if os.getenv("GROQ_API_KEY") else "gemini"
+
+
+def default_model():
+    if llm_provider() == "groq":
+        from google.adk.models.lite_llm import LiteLlm
+
+        # Reads GROQ_API_KEY. The free tier caps tokens per minute, so let
+        # litellm wait and retry on rate limits.
+        return LiteLlm(model=f"groq/{GROQ_MODEL}", num_retries=8)
+    return Gemini(model=MODEL, retry_options=RETRY)
+
+
 def build_root(llm=None, issue_mode: bool = False) -> SequentialAgent:
-    model = llm if llm is not None else MODEL
+    model = llm if llm is not None else default_model()
     researcher = LlmAgent(
         name="researcher",
         model=model,
@@ -152,7 +185,9 @@ async def run(question: str, issue: dict | None = None, llm=None) -> dict:
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
         "latency_ms": int((time.time() - started) * 1000),
-        "est_cost_usd": round(
+        "est_cost_usd": 0.0
+        if (llm is None and llm_provider() == "groq")
+        else round(
             tokens_in / 1e6 * PRICE_IN_PER_M + tokens_out / 1e6 * PRICE_OUT_PER_M, 6
         ),
     }

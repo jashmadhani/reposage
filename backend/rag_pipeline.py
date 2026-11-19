@@ -1,10 +1,13 @@
 """Simple mode: one retrieval over Chunks plus one LLM call."""
 
+import os
 import time
 
 import vector_store
 
-MODEL = "gemini-2.5-flash"
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+
+_client = None
 NOT_FOUND = "Not found in this repository."
 
 
@@ -25,11 +28,50 @@ def build_prompt(question: str, results) -> str:
     )
 
 
+def _generate_groq(prompt: str) -> tuple[str, dict]:
+    import httpx
+
+    resp = httpx.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
+        json={
+            "model": os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+        },
+        timeout=60,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    usage = data.get("usage", {})
+    return data["choices"][0]["message"]["content"] or "", {
+        "tokens_in": usage.get("prompt_tokens", 0),
+        "tokens_out": usage.get("completion_tokens", 0),
+    }
+
+
 def generate(prompt: str) -> tuple[str, dict]:
     """The only place simple mode talks to the LLM. Returns (text, usage)."""
+    from agent.pipeline import llm_provider
+
+    if llm_provider() == "groq":
+        return _generate_groq(prompt)
+    global _client
     from google import genai
 
-    resp = genai.Client().models.generate_content(model=MODEL, contents=prompt)
+    # Keep the client alive: a temporary one is closed when garbage collected,
+    # which fails the request with "client has been closed".
+    if _client is None:
+        from google.genai import types
+
+        _client = genai.Client(
+            http_options=types.HttpOptions(
+                retry_options=types.HttpRetryOptions(
+                    attempts=5, initial_delay=2, max_delay=20, http_status_codes=[429, 503]
+                )
+            )
+        )
+    resp = _client.models.generate_content(model=MODEL, contents=prompt)
     meta = resp.usage_metadata
     usage = {
         "tokens_in": getattr(meta, "prompt_token_count", 0) or 0,

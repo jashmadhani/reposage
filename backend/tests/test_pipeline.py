@@ -93,3 +93,24 @@ def test_question_with_braces_does_not_break_rendering():
     )
     out = asyncio.run(pipeline.run("what does {this} dict {} do?", llm=llm))
     assert out["answer"] == "ok app/auth.py:1-3"
+
+
+def test_exit_loop_refuses_draft_without_valid_citation():
+    llm = make_llm(
+        researcher=["Evidence: app/auth.py:1-3"],
+        writer=["An answer with no citation at all.", "Fixed. app/auth.py:1-3"],
+        reviewer=[APPROVE, "No citation; revise.", APPROVE],
+    )
+    out = asyncio.run(pipeline.run("q", llm=llm))
+    assert llm.calls["writer"] == 2
+    assert out["answer"] == "Fixed. app/auth.py:1-3"
+
+
+def test_exit_loop_refuses_citation_to_nonexistent_lines():
+    llm = make_llm(
+        researcher=["Evidence: x"],
+        writer=["Bad range. app/auth.py:1-99", "Good. app/auth.py:1-3"],
+        reviewer=[APPROVE, "Range does not exist.", APPROVE],
+    )
+    out = asyncio.run(pipeline.run("q", llm=llm))
+    assert llm.calls["writer"] == 2 and out["answer"] == "Good. app/auth.py:1-3"

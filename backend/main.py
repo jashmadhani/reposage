@@ -1,5 +1,6 @@
 """FastAPI app: /index, /ask, /issue, /health, and the static frontend."""
 
+import logging
 import os
 import time
 from pathlib import Path
@@ -13,6 +14,7 @@ from pydantic import BaseModel
 import citations
 import fake_mode
 import issues
+import keys
 import limits
 import rag_pipeline
 import repo_loader
@@ -20,10 +22,13 @@ import vector_store
 from agent import pipeline
 
 load_dotenv()
+keys.activate()
 
 FAKE = os.getenv("REPOSAGE_FAKE") == "1"
 if FAKE:
     fake_mode.enable()
+
+log = logging.getLogger("reposage")
 
 app = FastAPI(title="RepoSage")
 
@@ -102,6 +107,19 @@ def index_repo(body: IndexRequest, request: Request):
     }
 
 
+async def _with_key_rotation(work):
+    """Run `work`; on a quota error switch to the next API key and run it again."""
+    while True:
+        try:
+            return await work()
+        except Exception as e:
+            if keys.is_quota_error(e) and keys.rotate_after_quota_error():
+                log.warning("quota error, switched API key: %s", " ".join(str(e).split())[:160])
+                rag_pipeline._client = None  # rebuild the client with the new key
+                continue
+            return error(502, f"Upstream model error: {e}")
+
+
 def _finish(answer: str, trace: dict, idx) -> dict:
     return {
         "answer": answer,
@@ -120,15 +138,15 @@ async def ask(body: AskRequest, request: Request):
     question = body.question.strip()
     if not question or body.mode not in ("agent", "simple"):
         return error(400, "Enter a question and use mode agent or simple.")
-    try:
+    async def work():
         if body.mode == "simple":
             answer, _, trace = rag_pipeline.answer_question(question)
             return _finish(answer, trace, idx)
         llm = fake_mode.llm_for(idx) if FAKE else None
         out = await pipeline.run(question, llm=llm)
         return _finish(out["answer"], out["trace"], idx)
-    except Exception as e:
-        return error(502, f"Upstream model error: {e}")
+
+    return await _with_key_rotation(work)
 
 
 @app.post("/issue")
@@ -151,12 +169,12 @@ async def issue(body: IssueRequest, request: Request):
         found = issues.fetch_issue(body.issue_url)
     except issues.IssueError as e:
         return error(502 if e.upstream else 400, str(e))
-    try:
+    async def work():
         llm = fake_mode.llm_for(idx) if FAKE else None
         out = await pipeline.run("", issue=found, llm=llm)
         return _finish(out["answer"], out["trace"], idx)
-    except Exception as e:
-        return error(502, f"Upstream model error: {e}")
+
+    return await _with_key_rotation(work)
 
 
 _FRONTEND = Path(__file__).resolve().parent.parent / "frontend"

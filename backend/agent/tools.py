@@ -2,8 +2,10 @@
 and docstring to the model, so the docstrings are written for the model."""
 
 import fnmatch
+import os
 
 import vector_store
+from citations import parse_citations
 
 MAX_CHARS = 6000
 MAX_LINES = 120
@@ -12,9 +14,12 @@ NOT_INDEXED = "No repository is indexed."
 
 
 def _truncate(text: str) -> str:
-    if len(text) <= MAX_CHARS:
+    # TOOL_MAX_CHARS lowers the cap for providers with small token budgets
+    # (for example Groq's free tier, 8000 tokens per minute).
+    limit = int(os.getenv("TOOL_MAX_CHARS", MAX_CHARS))
+    if len(text) <= limit:
         return text
-    return text[:MAX_CHARS] + "\n[truncated]"
+    return text[:limit] + "\n[truncated]"
 
 
 def search_code(query: str) -> str:
@@ -77,3 +82,29 @@ def list_files(pattern: str = "*") -> str:
     if not paths:
         return "No files match."
     return _truncate("\n".join(paths[:MAX_FILES]))
+
+
+def exit_loop(tool_context) -> str:
+    """Approve the draft and finish. Call this only when every citation in the
+    draft has been checked with read_file_lines and supports its claim.
+
+    It refuses if the draft has no citation, or cites a file or line range
+    that does not exist in the repository.
+    """
+    index = vector_store.current()
+    draft = tool_context.state.get("draft", "")
+    cites = parse_citations(draft)
+    valid = []
+    for path, start, end in cites:
+        text = index.files.get(path) if index else None
+        if text is not None and 1 <= start <= end <= len(text.splitlines()):
+            valid.append((path, start, end))
+    if not valid:
+        return (
+            "Not approved: the draft has no valid citation. Citations must be "
+            "written path:start-end and point at lines that exist. Send the "
+            "draft back to the Writer."
+        )
+    tool_context.actions.escalate = True
+    tool_context.actions.skip_summarization = True
+    return "Approved."
