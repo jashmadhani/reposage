@@ -1,7 +1,9 @@
 fastapi
 uvicorn
 GitPython
-sentence-transformers
 faiss-cpu
-google-generativeai
+google-adk
+google-genai
+numpy
+httpx
 python-dotenv
