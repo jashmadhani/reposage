@@ -6,3 +6,4 @@ Items outside the v2 plan. Not scheduled.
 - **Python version:** development here ran on Python 3.13; the Dockerfile targets 3.12. Run the suite on 3.12 in CI before the first deploy.
 - **Image build not verified locally:** the Docker daemon was not running during Task 7, so `docker build .` has not been run. Build it once (or let `gcloud run deploy --source .` do it) and confirm the image is under 500 MB.
 - **Eval runner:** `adk eval` needs an agent module that exposes `root_agent` and indexes RepoSage before the run. Add a small wrapper (index this repo, then `build_root()`), run the 10 case eval set with a real key, and record the pass count, p50 latency and tokens per request in the README.
+- **`.env.example`:** still lists the v1 variable `GEMINI_API_KEY`; v2 documents `GOOGLE_API_KEY`. Update the example file so both match.
