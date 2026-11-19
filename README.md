@@ -43,6 +43,13 @@ uvicorn main:app --reload --port 8000
 
 Put `GOOGLE_API_KEY=your_key` in a `.env` file at the repository root (it is gitignored; never commit it). Then open http://localhost:8000. To try the UI without a key, start with `REPOSAGE_FAKE=1`: answers are canned, but retrieval, citations and the Trace are real.
 
+Useful settings (all optional, see `.env.example`):
+
+- `GEMINI_MODEL`: the Gemini model for the agents and simple mode.
+- `EMBEDDING_PROVIDER=local`: embed on your machine with sentence-transformers (`pip install -r requirements-local.txt`) instead of the Gemini embedding API, which has a small free-tier limit.
+- `LLM_PROVIDER=groq` with `GROQ_API_KEY` (and `pip install -r requirements-groq.txt`): use Groq instead of Gemini.
+- `GEMINI_API_KEYS=key1,key2`: switch to the next key on a quota error. Quota is per Google project, so the keys must come from different projects.
+
 Tests run offline (no network, no key):
 
 ```bash
@@ -69,7 +76,7 @@ This runs `gcloud run deploy` in `asia-south1` with one instance and 2 GiB of me
 
 ## Evaluation
 
-[`eval/`](eval/README.md) holds a 10 question ADK eval set about this repository. It has not been run yet; results (pass count, p50 latency, tokens per request) will be recorded here once it has.
+[`eval/`](eval/README.md) holds a 10 question eval set about this repository and a runner. Latest run (`gemini-3.5-flash-lite`, free tier, local embeddings): **10 of 10** questions answered with the expected file cited, p50 latency 10.5 s, median 32,927 input and 368 output tokens per question. A pass means the expected file was cited with a line range that exists; it does not grade each claim. See [`eval/README.md`](eval/README.md) for the caveats.
 
 ## Known limitations
 
@@ -77,4 +84,5 @@ This runs `gcloud run deploy` in `asia-south1` with one instance and 2 GiB of me
 - A single instance, and a public endpoint without authentication.
 - Only Python gets AST chunking; other languages use line windows.
 - ADK marks `SequentialAgent` and `LoopAgent` as deprecated in favour of `Workflow`; see [`docs/plans/BACKLOG.md`](docs/plans/BACKLOG.md).
-- The container image has not been built locally, so its size is unconfirmed.
+- The container image builds and boots (about 135 MB compressed, 640 MB unpacked) but has not been deployed to Cloud Run yet.
+- Free-tier model quotas are small (roughly 15 requests per minute and a daily cap per model), and one agent question uses 5 to 20 model calls, so heavy use needs a paid key.

@@ -1,0 +1,2 @@
+# Optional: only needed for LLM_PROVIDER=groq (ADK talks to Groq through litellm).
+litellm

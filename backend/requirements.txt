@@ -7,4 +7,3 @@ google-genai
 numpy
 httpx
 python-dotenv
-litellm

@@ -1,0 +1,150 @@
+{
+  "summary": {
+    "model": "gemini-3.5-flash-lite",
+    "provider": "gemini",
+    "cases_total": 10,
+    "cases_run": 10,
+    "passed": 10,
+    "p50_latency_s": 10.5,
+    "median_tokens_in": 32927,
+    "median_tokens_out": 368
+  },
+  "cases": [
+    {
+      "id": "chunk_python",
+      "expected": "backend/chunker.py",
+      "cited": [
+        "backend/chunker.py"
+      ],
+      "passed": true,
+      "latency_ms": 12040,
+      "tokens_in": 39425,
+      "tokens_out": 604,
+      "llm_calls": 8,
+      "tool_calls": 8
+    },
+    {
+      "id": "min_score",
+      "expected": "backend/vector_store.py",
+      "cited": [
+        "backend/vector_store.py"
+      ],
+      "passed": true,
+      "latency_ms": 15865,
+      "tokens_in": 49961,
+      "tokens_out": 381,
+      "llm_calls": 12,
+      "tool_calls": 12
+    },
+    {
+      "id": "embedding_provider",
+      "expected": "backend/embeddings.py",
+      "cited": [
+        "backend/embeddings.py",
+        "backend/requirements-local.txt",
+        "docs/adr/0002-gemini-embeddings-on-cloud-run.md"
+      ],
+      "passed": true,
+      "latency_ms": 12703,
+      "tokens_in": 49223,
+      "tokens_out": 527,
+      "llm_calls": 9,
+      "tool_calls": 10
+    },
+    {
+      "id": "secret_files",
+      "expected": "backend/repo_loader.py",
+      "cited": [
+        "backend/repo_loader.py"
+      ],
+      "passed": true,
+      "latency_ms": 8793,
+      "tokens_in": 22580,
+      "tokens_out": 355,
+      "llm_calls": 7,
+      "tool_calls": 11
+    },
+    {
+      "id": "rate_limits",
+      "expected": "backend/limits.py",
+      "cited": [
+        "backend/limits.py",
+        "backend/main.py"
+      ],
+      "passed": true,
+      "latency_ms": 7127,
+      "tokens_in": 16551,
+      "tokens_out": 354,
+      "llm_calls": 7,
+      "tool_calls": 8
+    },
+    {
+      "id": "issue_url",
+      "expected": "backend/issues.py",
+      "cited": [
+        "backend/issues.py"
+      ],
+      "passed": true,
+      "latency_ms": 7438,
+      "tokens_in": 26429,
+      "tokens_out": 346,
+      "llm_calls": 7,
+      "tool_calls": 7
+    },
+    {
+      "id": "loop_exit",
+      "expected": "backend/agent/pipeline.py",
+      "cited": [
+        "GLOSSARY.md",
+        "backend/agent/pipeline.py",
+        "docs/TRD.md"
+      ],
+      "passed": true,
+      "latency_ms": 15282,
+      "tokens_in": 68557,
+      "tokens_out": 805,
+      "llm_calls": 12,
+      "tool_calls": 15
+    },
+    {
+      "id": "read_cap",
+      "expected": "backend/agent/tools.py",
+      "cited": [
+        "backend/agent/tools.py"
+      ],
+      "passed": true,
+      "latency_ms": 5660,
+      "tokens_in": 12079,
+      "tokens_out": 169,
+      "llm_calls": 6,
+      "tool_calls": 4
+    },
+    {
+      "id": "github_links",
+      "expected": "backend/citations.py",
+      "cited": [
+        "backend/citations.py",
+        "frontend/app.js"
+      ],
+      "passed": true,
+      "latency_ms": 12254,
+      "tokens_in": 50735,
+      "tokens_out": 818,
+      "llm_calls": 10,
+      "tool_calls": 10
+    },
+    {
+      "id": "wrong_repo_issue",
+      "expected": "backend/main.py",
+      "cited": [
+        "backend/main.py"
+      ],
+      "passed": true,
+      "latency_ms": 8913,
+      "tokens_in": 20580,
+      "tokens_out": 264,
+      "llm_calls": 6,
+      "tool_calls": 6
+    }
+  ]
+}
