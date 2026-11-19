@@ -47,19 +47,39 @@ REVIEWER_INSTRUCTION = (
 )
 
 
-def build_root(llm=None) -> SequentialAgent:
+ISSUE_RESEARCHER_INSTRUCTION = (
+    "You are the Researcher. The user message is a GitHub Issue. Gather "
+    "Evidence from the indexed repository about where and why the problem "
+    "happens and which tests cover it. Call search_code with 2 to 4 different "
+    "queries, then use read_file_lines to confirm the exact lines. Finish by "
+    "listing each useful excerpt as path:start-end followed by what it shows. "
+    "Never invent paths or line numbers."
+)
+
+ISSUE_WRITER_INSTRUCTION = (
+    "You are the Writer. Write a Fix Plan for the Issue in the user message "
+    "using ONLY this Evidence:\n{evidence}\n\n"
+    "Use exactly these sections: Files to change, Steps, Tests to update, "
+    "Risks. Every item must end with a Citation written path:start-end that "
+    "appears in the Evidence. If the Evidence is not enough to plan a fix, "
+    "say: Not found in this repository.\n"
+    "Reviewer feedback to address, if any: {review?}"
+)
+
+
+def build_root(llm=None, issue_mode: bool = False) -> SequentialAgent:
     model = llm if llm is not None else MODEL
     researcher = LlmAgent(
         name="researcher",
         model=model,
-        instruction=RESEARCHER_INSTRUCTION,
+        instruction=ISSUE_RESEARCHER_INSTRUCTION if issue_mode else RESEARCHER_INSTRUCTION,
         tools=[search_code, read_file_lines, list_files],
         output_key="evidence",
     )
     writer = LlmAgent(
         name="writer",
         model=model,
-        instruction=WRITER_INSTRUCTION,
+        instruction=ISSUE_WRITER_INSTRUCTION if issue_mode else WRITER_INSTRUCTION,
         output_key="draft",
     )
     reviewer = LlmAgent(
@@ -80,7 +100,9 @@ def _preview(value, limit=200) -> str:
 
 async def run(question: str, issue: dict | None = None, llm=None) -> dict:
     """Run the pipeline once. Returns {answer, trace}."""
-    root = build_root(llm)
+    root = build_root(llm, issue_mode=issue is not None)
+    if issue is not None:
+        question = f"Issue: {issue['title']}\n\n{issue['body']}"
     runner = InMemoryRunner(agent=root, app_name=APP_NAME)
     session = await runner.session_service.create_session(
         app_name=APP_NAME, user_id="web"
