@@ -73,15 +73,75 @@ button:disabled {
   display: none;
 }
 
-#sources-box h2 {
+#citations-box h2,
+#result-title {
   font-size: 16px;
   margin-bottom: 6px;
 }
 
-#sources {
+#citations {
   margin: 0;
   padding-left: 20px;
   font-family: ui-monospace, Menlo, monospace;
   font-size: 13px;
   color: #444;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 16px 0 8px;
+}
+
+.tab {
+  background: #e5e5ea;
+  color: #1c1c1e;
+}
+
+.tab.active {
+  background: #1c1c1e;
+  color: white;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.mode {
+  font-size: 14px;
+  color: #444;
+}
+
+.mode select {
+  margin-left: 6px;
+  padding: 4px;
+}
+
+.muted {
+  color: #666;
+  font-size: 14px;
+}
+
+details {
+  margin-top: 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 4px 6px;
+  border-bottom: 1px solid #ddd;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+td:first-child,
+td:nth-child(2) {
+  white-space: nowrap;
 }

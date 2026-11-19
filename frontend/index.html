@@ -9,27 +9,56 @@
 <body>
   <main>
     <h1>RepoSage</h1>
-    <p class="subtitle">Ask questions about a public GitHub repository.</p>
+    <p class="subtitle">Ask a Question or turn an Issue into a Fix Plan. Every Citation is checked against the code.</p>
 
     <section>
-      <input id="repo-url" type="text" placeholder="https://github.com/pallets/flask">
+      <input id="repo-url" type="text" placeholder="https://github.com/owner/name" aria-label="Repository URL">
       <button id="index-btn">Index Repository</button>
     </section>
+    <p id="status" role="status"></p>
+    <p id="error" class="error" role="alert"></p>
 
-    <section>
-      <input id="question" type="text" placeholder="How does routing work?" disabled>
-      <button id="ask-btn" disabled>Ask</button>
-    </section>
+    <nav class="tabs" role="tablist">
+      <button id="tab-ask" role="tab" aria-selected="true" class="tab active">Ask</button>
+      <button id="tab-issue" role="tab" aria-selected="false" class="tab">Issue</button>
+    </nav>
 
-    <p id="status"></p>
-    <p id="error" class="error"></p>
+    <div id="panel-ask">
+      <section>
+        <input id="question" type="text" placeholder="How does routing work?" aria-label="Question" disabled>
+        <button id="ask-btn" disabled>Ask</button>
+      </section>
+      <label class="mode">Mode
+        <select id="mode">
+          <option value="agent">agent (verified)</option>
+          <option value="simple">simple (fast)</option>
+        </select>
+      </label>
+    </div>
 
+    <div id="panel-issue" hidden>
+      <section>
+        <input id="issue-url" type="text" placeholder="https://github.com/owner/name/issues/123" aria-label="Issue URL" disabled>
+        <button id="issue-btn" disabled>Make Fix Plan</button>
+      </section>
+    </div>
+
+    <h2 id="result-title" hidden></h2>
     <div id="answer"></div>
 
-    <div id="sources-box" hidden>
-      <h2>Sources</h2>
-      <ul id="sources"></ul>
+    <div id="citations-box" hidden>
+      <h2>Verified Citations</h2>
+      <ul id="citations"></ul>
     </div>
+
+    <details id="trace-box" hidden>
+      <summary>Trace</summary>
+      <p id="trace-summary" class="muted"></p>
+      <table>
+        <thead><tr><th>Agent</th><th>Step</th><th>Detail</th></tr></thead>
+        <tbody id="trace-steps"></tbody>
+      </table>
+    </details>
   </main>
 
   <script src="app.js"></script>

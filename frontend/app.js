@@ -1,92 +1,129 @@
-const API = "http://127.0.0.1:8000";
+// Model output is only ever written with textContent, never innerHTML.
+const $ = (id) => document.getElementById(id);
 
-const repoInput = document.getElementById("repo-url");
-const indexBtn = document.getElementById("index-btn");
-const questionInput = document.getElementById("question");
-const askBtn = document.getElementById("ask-btn");
-const statusEl = document.getElementById("status");
-const errorEl = document.getElementById("error");
-const answerEl = document.getElementById("answer");
-const sourcesBox = document.getElementById("sources-box");
-const sourcesEl = document.getElementById("sources");
-
-function clearMessages() {
-  errorEl.textContent = "";
-  statusEl.textContent = "";
+function setText(id, text) {
+  $(id).textContent = text;
 }
 
-async function postJSON(path, body) {
-  const response = await fetch(API + path, {
+async function post(path, body) {
+  const res = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return response.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
+  return data;
 }
 
-indexBtn.addEventListener("click", async () => {
-  const repoUrl = repoInput.value.trim();
-  if (!repoUrl) {
-    errorEl.textContent = "Enter a repository URL.";
-    return;
+function busy(button, label, on) {
+  if (!button.dataset.label) button.dataset.label = button.textContent;
+  button.disabled = on;
+  button.textContent = on ? label : button.dataset.label;
+}
+
+function clearResult() {
+  setText("error", "");
+  setText("answer", "");
+  $("result-title").hidden = true;
+  $("citations-box").hidden = true;
+  $("trace-box").hidden = true;
+}
+
+function cell(text) {
+  const td = document.createElement("td");
+  td.textContent = text;
+  return td;
+}
+
+function renderResult(title, data) {
+  setText("result-title", title);
+  $("result-title").hidden = false;
+  setText("answer", data.answer);
+
+  const list = $("citations");
+  list.replaceChildren();
+  for (const c of data.citations) {
+    if (!c.verified || !c.url.startsWith("https://github.com/")) continue;
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = c.url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = `${c.path}:${c.start}-${c.end}`;
+    li.appendChild(a);
+    list.appendChild(li);
   }
+  $("citations-box").hidden = list.children.length === 0;
 
-  clearMessages();
-  indexBtn.disabled = true;
-  statusEl.textContent =
-    "Indexing... the first run also downloads the embedding model, so this can take a few minutes.";
+  const t = data.trace;
+  setText(
+    "trace-summary",
+    `${t.llm_calls} model calls, ${t.tool_calls} tool calls, ` +
+      `${t.tokens_in} tokens in, ${t.tokens_out} tokens out, ` +
+      `${(t.latency_ms / 1000).toFixed(1)} s, estimated cost $${t.est_cost_usd.toFixed(4)}`
+  );
+  const body = $("trace-steps");
+  body.replaceChildren();
+  for (const s of t.steps) {
+    const tr = document.createElement("tr");
+    const args = Object.keys(s.args || {}).length ? JSON.stringify(s.args) : "";
+    tr.append(cell(s.agent), cell(`${s.kind}: ${s.name}`), cell(`${args} ${s.preview}`.trim()));
+    body.appendChild(tr);
+  }
+  $("trace-box").hidden = false;
+}
 
+function selectTab(name) {
+  for (const t of ["ask", "issue"]) {
+    const on = t === name;
+    $(`tab-${t}`).classList.toggle("active", on);
+    $(`tab-${t}`).setAttribute("aria-selected", String(on));
+    $(`panel-${t}`).hidden = !on;
+  }
+}
+
+async function run(button, label, fn) {
+  clearResult();
+  busy(button, label, true);
   try {
-    const data = await postJSON("/index", { repo_url: repoUrl });
-    if (data.status === "error") {
-      errorEl.textContent = data.message;
-      statusEl.textContent = "";
-    } else {
-      statusEl.textContent = `Indexed ${data.files_indexed} files from ${data.repo_name}.`;
-      questionInput.disabled = false;
-      askBtn.disabled = false;
-    }
+    await fn();
   } catch (e) {
-    errorEl.textContent = "Could not reach the backend. Is it running on port 8000?";
-    statusEl.textContent = "";
+    setText("error", e.message);
+  } finally {
+    busy(button, "", false);
   }
+}
 
-  indexBtn.disabled = false;
+$("tab-ask").addEventListener("click", () => selectTab("ask"));
+$("tab-issue").addEventListener("click", () => selectTab("issue"));
+
+$("index-btn").addEventListener("click", () => {
+  setText("status", "");
+  run($("index-btn"), "Indexing...", async () => {
+    const d = await post("/index", { repo_url: $("repo-url").value.trim() });
+    setText(
+      "status",
+      `Indexed ${d.repo_name}: ${d.files_indexed} files, ${d.chunks_indexed} chunks in ${d.seconds} s.`
+    );
+    for (const id of ["question", "ask-btn", "issue-url", "issue-btn"]) $(id).disabled = false;
+  });
 });
 
-askBtn.addEventListener("click", async () => {
-  const question = questionInput.value.trim();
-  if (!question) {
-    errorEl.textContent = "Enter a question.";
-    return;
-  }
+$("ask-btn").addEventListener("click", () =>
+  run($("ask-btn"), "Thinking...", async () => {
+    const data = await post("/ask", { question: $("question").value, mode: $("mode").value });
+    renderResult("Answer", data);
+  })
+);
 
-  clearMessages();
-  askBtn.disabled = true;
-  answerEl.textContent = "";
-  sourcesBox.hidden = true;
-  statusEl.textContent = "Thinking...";
+$("issue-btn").addEventListener("click", () =>
+  run($("issue-btn"), "Planning...", async () => {
+    const data = await post("/issue", { issue_url: $("issue-url").value.trim() });
+    renderResult("Fix Plan", data);
+  })
+);
 
-  try {
-    const data = await postJSON("/ask", { question });
-    statusEl.textContent = "";
-
-    if (data.status === "error") {
-      errorEl.textContent = data.message;
-    } else {
-      answerEl.textContent = data.answer;
-      sourcesEl.innerHTML = "";
-      data.sources.forEach((path) => {
-        const li = document.createElement("li");
-        li.textContent = path;
-        sourcesEl.appendChild(li);
-      });
-      sourcesBox.hidden = false;
-    }
-  } catch (e) {
-    statusEl.textContent = "";
-    errorEl.textContent = "Could not reach the backend. Is it running on port 8000?";
-  }
-
-  askBtn.disabled = false;
+$("question").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !$("ask-btn").disabled) $("ask-btn").click();
 });
