@@ -1,0 +1,397 @@
+{
+  "eval_set_id": "reposage_self_questions",
+  "name": "RepoSage questions about itself",
+  "description": "Ten questions about this repository. The expected file is named in each reference answer.",
+  "eval_cases": [
+    {
+      "eval_id": "chunk_python",
+      "conversation": [
+        {
+          "invocation_id": "chunk_python-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "How are Python files split into chunks?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Python files are split on top-level functions and classes with the ast module. (backend/chunker.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "min_score",
+      "conversation": [
+        {
+          "invocation_id": "min_score-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "What similarity score does a chunk need to be returned by search?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Chunks scoring below the MIN_SCORE floor of 0.30 are dropped. (backend/vector_store.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "embedding_provider",
+      "conversation": [
+        {
+          "invocation_id": "embedding_provider-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "How do I switch from Gemini embeddings to the local model?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Set the EMBEDDING_PROVIDER environment variable to local. (backend/embeddings.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "secret_files",
+      "conversation": [
+        {
+          "invocation_id": "secret_files-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Which files are never indexed so secrets stay out of the model?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Files matching patterns such as .env, *.pem, *.key and id_rsa* are excluded. (backend/repo_loader.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "rate_limits",
+      "conversation": [
+        {
+          "invocation_id": "rate_limits-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "What are the per-IP request limits?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "60 ask requests and 10 index requests per IP per hour. (backend/limits.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "issue_url",
+      "conversation": [
+        {
+          "invocation_id": "issue_url-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Which issue URLs does RepoSage accept?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Only https://github.com/owner/name/issues/number; pull request URLs and other hosts are rejected. (backend/issues.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "loop_exit",
+      "conversation": [
+        {
+          "invocation_id": "loop_exit-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "What makes the Writer and Reviewer loop stop early?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "The Reviewer calls exit_loop when every citation is supported; otherwise it runs at most two iterations. (backend/agent/pipeline.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "read_cap",
+      "conversation": [
+        {
+          "invocation_id": "read_cap-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "How many lines can the read_file_lines tool return at once?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "At most 120 lines, with output truncated to 6000 characters. (backend/agent/tools.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "github_links",
+      "conversation": [
+        {
+          "invocation_id": "github_links-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "How is a citation turned into a link on GitHub?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "github_url builds a blob/HEAD link with a #L start-L end anchor. (backend/citations.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "wrong_repo_issue",
+      "conversation": [
+        {
+          "invocation_id": "wrong_repo_issue-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "What happens if the issue belongs to a different repository than the indexed one?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "The /issue route returns HTTP 409. (backend/main.py)"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "search_code",
+                "args": {}
+              }
+            ],
+            "tool_responses": [],
+            "intermediate_responses": []
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "reposage",
+        "user_id": "eval",
+        "state": {}
+      }
+    }
+  ]
+}
