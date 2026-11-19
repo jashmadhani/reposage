@@ -1,104 +1,76 @@
-"""Local embedding + FAISS retrieval, and the single call out to Gemini."""
+"""Simple mode: one retrieval over Chunks plus one LLM call."""
 
-import os
+import time
 
-import faiss
-import google.generativeai as genai
-import numpy as np
-from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
+import vector_store
 
-load_dotenv()
-
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-GENERATION_MODEL_NAME = "gemini-1.5-flash"
-TOP_K = 5
-
-# The whole index lives in this module's globals. Nothing is written to disk,
-# so restarting the server means re-indexing.
-_embedding_model = None
-_index = None
-_documents = []  # parallel to the index: _documents[i] is (path, text) for vector i
+MODEL = "gemini-2.5-flash"
+NOT_FOUND = "Not found in this repository."
 
 
-def get_embedding_model():
-    """Load the sentence-transformers model once and reuse it."""
-    global _embedding_model
-    if _embedding_model is None:
-        _embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-    return _embedding_model
-
-
-def build_index(files):
-    """Embed one vector per file and put them all in a fresh FAISS index."""
-    global _index, _documents
-
-    model = get_embedding_model()
-    texts = [text for _path, text in files]
-    embeddings = model.encode(texts, show_progress_bar=False)
-    embeddings = np.array(embeddings).astype("float32")
-
-    # IndexFlatL2 is a brute-force exact search over L2 distance. Fine at this scale.
-    _index = faiss.IndexFlatL2(embeddings.shape[1])
-    _index.add(embeddings)
-    _documents = files
-
-    return len(files)
-
-
-def is_indexed():
-    return _index is not None
-
-
-def retrieve(question):
-    """Embed the question and return the TOP_K nearest (path, text) pairs."""
-    model = get_embedding_model()
-    question_embedding = model.encode([question])
-    question_embedding = np.array(question_embedding).astype("float32")
-
-    k = min(TOP_K, len(_documents))
-    _distances, indices = _index.search(question_embedding, k)
-
-    return [_documents[i] for i in indices[0]]
-
-
-def build_prompt(question, retrieved):
-    """Assemble the retrieved file contents into one grounded prompt."""
-    context_blocks = []
-    for path, text in retrieved:
-        context_blocks.append(f"--- FILE: {path} ---\n{text}")
-    context = "\n\n".join(context_blocks)
-
+def build_prompt(question: str, results) -> str:
+    blocks = []
+    for chunk, score in results:
+        label = f"{chunk.citation}" + (f" ({chunk.symbol})" if chunk.symbol else "")
+        blocks.append(f"### {label}\n{chunk.text}")
+    evidence = "\n\n".join(blocks)
     return (
-        "You are answering questions about a code repository.\n"
-        "Answer ONLY using the file contents provided below. "
-        "If the answer is not in these files, say you cannot find the answer "
-        "in the retrieved files. Do not guess and do not use outside knowledge.\n\n"
-        f"FILE CONTENTS:\n{context}\n\n"
-        f"QUESTION: {question}\n\n"
-        "ANSWER:"
+        "You are answering a question about a code repository.\n"
+        "Use ONLY the excerpts below. After every claim, add a citation in the "
+        "form path:start-end using the line ranges from the excerpt headings. "
+        "If the excerpts do not answer the question, reply exactly: "
+        f"{NOT_FOUND}\n\n"
+        f"EXCERPTS:\n{evidence}\n\n"
+        f"QUESTION: {question}\n\nANSWER:"
     )
 
 
-def generate_answer(prompt):
-    """The only place this project talks to a generation API. Swap here."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return "GEMINI_API_KEY is not set. Add it to your .env file."
+def generate(prompt: str) -> tuple[str, dict]:
+    """The only place simple mode talks to the LLM. Returns (text, usage)."""
+    from google import genai
 
-    try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(GENERATION_MODEL_NAME)
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"The generation API returned an error: {e}"
+    resp = genai.Client().models.generate_content(model=MODEL, contents=prompt)
+    meta = resp.usage_metadata
+    usage = {
+        "tokens_in": getattr(meta, "prompt_token_count", 0) or 0,
+        "tokens_out": getattr(meta, "candidates_token_count", 0) or 0,
+    }
+    return resp.text or "", usage
 
 
-def answer_question(question):
-    """Retrieve, prompt, generate. Returns (answer, source_paths)."""
-    retrieved = retrieve(question)
-    prompt = build_prompt(question, retrieved)
-    answer = generate_answer(prompt)
-    sources = [path for path, _text in retrieved]
-    return answer, sources
+def answer_question(question: str):
+    """Returns (answer, citations, trace). `citations` are (path, start, end)
+    tuples taken from the retrieved Chunks' ranges that the answer cites."""
+    from citations import parse_citations
+
+    index = vector_store.current()
+    started = time.time()
+    results = index.search(question)
+    if not results:
+        trace = _trace([], 0, {"tokens_in": 0, "tokens_out": 0}, started, 0)
+        return NOT_FOUND, [], trace
+
+    text, usage = generate(build_prompt(question, results))
+    steps = [
+        {
+            "agent": "simple",
+            "kind": "tool",
+            "name": "search_code",
+            "args": {"query": question},
+            "preview": ", ".join(c.citation for c, _ in results),
+        }
+    ]
+    trace = _trace(steps, 1, usage, started, 1)
+    return text, parse_citations(text), trace
+
+
+def _trace(steps, llm_calls, usage, started, tool_calls):
+    return {
+        "steps": steps,
+        "llm_calls": llm_calls,
+        "tool_calls": tool_calls,
+        "tokens_in": usage["tokens_in"],
+        "tokens_out": usage["tokens_out"],
+        "latency_ms": int((time.time() - started) * 1000),
+        "est_cost_usd": 0.0,
+    }
