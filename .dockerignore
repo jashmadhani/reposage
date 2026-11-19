@@ -1,0 +1,14 @@
+.git
+.env
+**/.env
+**/venv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+backend/temp_repo
+backend/cloned_repos
+backend/models
+docs
+eval
+*.faiss
