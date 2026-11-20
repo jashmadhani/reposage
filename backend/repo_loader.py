@@ -8,7 +8,7 @@ import shutil
 from git import Repo
 
 # Where the clone lives. Wiped and rebuilt on every /index call.
-CLONE_DIR = "temp_repo"
+CLONE_DIR = os.getenv("CLONE_DIR", "temp_repo")  # containers point this at /tmp
 
 # Only files with these extensions are indexed.
 INCLUDED_EXTENSIONS = [

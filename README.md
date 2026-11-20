@@ -1,8 +1,10 @@
 # RepoSage
 
+[![tests](https://github.com/jashmadhani/reposage/actions/workflows/ci.yml/badge.svg)](https://github.com/jashmadhani/reposage/actions/workflows/ci.yml)
+
 Point RepoSage at any public GitHub repository. Ask a Question, or paste an Issue and get a Fix Plan. Every claim cites exact lines, and a Reviewer agent re-reads those lines before the answer is shown.
 
-**Live:** `https://<your-cloud-run-url>` (placeholder: add the URL after the first deploy)
+**Live:** _not deployed yet_ (add the URL here after the first deploy; see [Deploy](#deploy))
 
 <!-- LAUNCH VIDEO: embed or link the launch video here -->
 
@@ -59,7 +61,9 @@ python -m pytest -q
 
 ## Deploy
 
-From Cloud Shell, with the key in your environment (never in a file in this repository):
+**Render (free, no credit card).** Push this repository to GitHub, then in Render choose New + > Blueprint and pick it. Render reads [`render.yaml`](render.yaml), builds the Dockerfile and asks for `GOOGLE_API_KEY`, which you enter in its dashboard (never in this repository). The free instance sleeps after about 15 idle minutes and takes about a minute to wake, and the in-memory index is lost when it sleeps, so index again after a wake-up. The app uses about 100 MB of memory, well inside the 512 MB free limit.
+
+**Google Cloud Run.** From Cloud Shell or any machine with `gcloud`, in a project with billing enabled, with the key in your environment (never in a file in this repository):
 
 ```bash
 export GOOGLE_API_KEY=...

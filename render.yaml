@@ -1,0 +1,14 @@
+# Render blueprint: a free Docker web service (no credit card needed).
+# In Render: New + -> Blueprint -> pick this repository. Render builds the
+# Dockerfile and asks for GOOGLE_API_KEY, which you type in its dashboard.
+services:
+  - type: web
+    name: reposage
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GOOGLE_API_KEY
+        sync: false          # secret: set it in the Render dashboard, never here
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
