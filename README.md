@@ -6,7 +6,11 @@ Point RepoSage at any public GitHub repository. Ask a Question, or paste an Issu
 
 **Live:** https://reposage-983901098678.asia-south1.run.app (Google Cloud Run, Gemini on Vertex AI). Index a small public repository first, such as `https://github.com/pallets/itsdangerous`. It is a free demo with a daily question limit, so it may say "limit reached".
 
-<!-- LAUNCH VIDEO: embed or link the launch video here -->
+## Watch the walkthrough (2 min 36 s)
+
+[![Watch the RepoSage walkthrough: indexing a repository, asking a question, verifying a citation on GitHub, the Trace and a Fix Plan](docs/media/reposage-explainer-poster.jpg)](docs/media/reposage-explainer.mp4)
+
+A narrated tour of every feature, recorded from the live app: index a repository, ask in agent mode, click a citation to land on the exact lines on GitHub, read the Trace, and turn an issue into a Fix Plan. (The video shows the earlier, plainer interface; the features are the same.)
 
 ## What makes it different
 
