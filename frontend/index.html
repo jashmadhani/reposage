@@ -4,62 +4,112 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RepoSage</title>
+  <meta name="description" content="Ask any public GitHub repository a question, or turn an issue into a fix plan. Every claim cites exact lines that were verified.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main>
-    <h1>RepoSage</h1>
-    <p class="subtitle">Ask a Question or turn an Issue into a Fix Plan. Every Citation is checked against the code.</p>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">RS</span>
+      <span class="brand-name">RepoSage</span>
+    </div>
+    <a class="top-link" href="https://github.com/jashmadhani/reposage" target="_blank" rel="noopener noreferrer">GitHub</a>
+  </header>
 
-    <section>
-      <input id="repo-url" type="text" placeholder="https://github.com/owner/name" aria-label="Repository URL">
-      <button id="index-btn">Index Repository</button>
+  <main>
+    <section class="hero">
+      <h1>Ask any GitHub repository. Get answers you can check.</h1>
+      <p class="lead">Every claim cites exact lines of code. A Reviewer agent re-reads each cited range before you see the answer.</p>
+      <ol class="steps" aria-label="How it works">
+        <li><span class="num">1</span><span><strong>Index</strong> a public repository</span></li>
+        <li><span class="num">2</span><span><strong>Ask</strong> a question, or paste an issue</span></li>
+        <li><span class="num">3</span><span><strong>Verify</strong> every citation on GitHub</span></li>
+      </ol>
     </section>
-    <p id="status" role="status"></p>
+
+    <section class="card" id="step-index" aria-labelledby="h-index">
+      <h2 id="h-index"><span class="num">1</span> Index a repository</h2>
+      <div class="row">
+        <input id="repo-url" type="text" placeholder="https://github.com/owner/name" aria-label="Repository URL" autocomplete="off" spellcheck="false">
+        <button id="index-btn" class="primary">Index Repository</button>
+      </div>
+      <div class="chips" aria-label="Examples">
+        <span class="chips-label">Try</span>
+        <button class="chip" data-fill="repo-url" data-value="https://github.com/pallets/itsdangerous">pallets/itsdangerous</button>
+        <button class="chip" data-fill="repo-url" data-value="https://github.com/pallets/click">pallets/click</button>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card locked" id="step-ask" aria-labelledby="h-ask">
+      <h2 id="h-ask"><span class="num">2</span> Ask or plan</h2>
+      <p id="lock-note" class="muted">Index a repository first.</p>
+
+      <div class="tabs" role="tablist">
+        <button id="tab-ask" role="tab" aria-selected="true" class="tab active">Ask a question</button>
+        <button id="tab-issue" role="tab" aria-selected="false" class="tab">Issue to Fix Plan</button>
+      </div>
+
+      <div id="panel-ask">
+        <div class="row">
+          <input id="question" type="text" placeholder="How does the signer create and verify a signature?" aria-label="Question" autocomplete="off" disabled>
+          <button id="ask-btn" class="primary" disabled>Ask</button>
+        </div>
+        <div class="options">
+          <div class="segmented" role="radiogroup" aria-label="Mode">
+            <input type="radio" name="mode" id="mode-agent" value="agent" checked><label for="mode-agent">Agent <small>verified</small></label>
+            <input type="radio" name="mode" id="mode-simple" value="simple"><label for="mode-simple">Simple <small>fast</small></label>
+          </div>
+          <div class="chips">
+            <span class="chips-label">Try</span>
+            <button class="chip" data-fill="question" data-value="How does the signer create and verify a signature?">signing</button>
+            <button class="chip" data-fill="question" data-value="What does BadSignature mean?">BadSignature</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-issue" hidden>
+        <div class="row">
+          <input id="issue-url" type="text" placeholder="https://github.com/owner/name/issues/123" aria-label="Issue URL" autocomplete="off" spellcheck="false" disabled>
+          <button id="issue-btn" class="primary" disabled>Make Fix Plan</button>
+        </div>
+        <div class="chips">
+          <span class="chips-label">Try</span>
+          <button class="chip" data-fill="issue-url" data-value="https://github.com/pallets/itsdangerous/issues/429">itsdangerous #429</button>
+        </div>
+        <p class="muted small">The issue must belong to the repository you indexed.</p>
+      </div>
+    </section>
+
     <p id="error" class="error" role="alert"></p>
 
-    <nav class="tabs" role="tablist">
-      <button id="tab-ask" role="tab" aria-selected="true" class="tab active">Ask</button>
-      <button id="tab-issue" role="tab" aria-selected="false" class="tab">Issue</button>
-    </nav>
+    <section class="card result" id="result" hidden aria-live="polite">
+      <div class="result-head">
+        <h2 id="result-title">Answer</h2>
+        <button id="copy-btn" class="ghost">Copy</button>
+      </div>
+      <div id="answer" class="answer"></div>
 
-    <div id="panel-ask">
-      <section>
-        <input id="question" type="text" placeholder="How does routing work?" aria-label="Question" disabled>
-        <button id="ask-btn" disabled>Ask</button>
-      </section>
-      <label class="mode">Mode
-        <select id="mode">
-          <option value="agent">agent (verified)</option>
-          <option value="simple">simple (fast)</option>
-        </select>
-      </label>
-    </div>
+      <div id="citations-box" hidden>
+        <h3>Verified citations</h3>
+        <p class="muted small">Each range was re-read by the Reviewer. Click to open the exact lines on GitHub.</p>
+        <ul id="citations" class="cite-list"></ul>
+      </div>
 
-    <div id="panel-issue" hidden>
-      <section>
-        <input id="issue-url" type="text" placeholder="https://github.com/owner/name/issues/123" aria-label="Issue URL" disabled>
-        <button id="issue-btn" disabled>Make Fix Plan</button>
-      </section>
-    </div>
-
-    <h2 id="result-title" hidden></h2>
-    <div id="answer"></div>
-
-    <div id="citations-box" hidden>
-      <h2>Verified Citations</h2>
-      <ul id="citations"></ul>
-    </div>
-
-    <details id="trace-box" hidden>
-      <summary>Trace</summary>
-      <p id="trace-summary" class="muted"></p>
-      <table>
-        <thead><tr><th>Agent</th><th>Step</th><th>Detail</th></tr></thead>
-        <tbody id="trace-steps"></tbody>
-      </table>
-    </details>
+      <details id="trace-box" hidden>
+        <summary>Trace <span class="muted small">what the agents did</span></summary>
+        <div id="trace-chips" class="trace-chips"></div>
+        <table>
+          <thead><tr><th>Agent</th><th>Step</th><th>Detail</th></tr></thead>
+          <tbody id="trace-steps"></tbody>
+        </table>
+      </details>
+    </section>
   </main>
+
+  <footer class="foot">
+    <span>Public demo. Limits: 60 questions per visitor per hour and 300 per day in total.</span>
+  </footer>
 
   <script src="app.js"></script>
 </body>
