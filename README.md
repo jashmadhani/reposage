@@ -4,7 +4,7 @@
 
 Point RepoSage at any public GitHub repository. Ask a Question, or paste an Issue and get a Fix Plan. Every claim cites exact lines, and a Reviewer agent re-reads those lines before the answer is shown.
 
-**Live:** _not deployed yet_ (add the URL here after the first deploy; see [Deploy](#deploy))
+**Live:** https://reposage-983901098678.asia-south1.run.app (Google Cloud Run, Gemini on Vertex AI). Index a small public repository first, such as `https://github.com/pallets/itsdangerous`. It is a free demo with a daily question limit, so it may say "limit reached".
 
 <!-- LAUNCH VIDEO: embed or link the launch video here -->
 
@@ -61,20 +61,25 @@ python -m pytest -q
 
 ## Deploy
 
-**Render (free, no credit card).** Push this repository to GitHub, then in Render choose New + > Blueprint and pick it. Render reads [`render.yaml`](render.yaml), builds the Dockerfile and asks for `GOOGLE_API_KEY`, which you enter in its dashboard (never in this repository). The free instance sleeps after about 15 idle minutes and takes about a minute to wake, and the in-memory index is lost when it sleeps, so index again after a wake-up. The app uses about 100 MB of memory, well inside the 512 MB free limit.
-
-**Google Cloud Run.** From Cloud Shell or any machine with `gcloud`, in a project with billing enabled, with the key in your environment (never in a file in this repository):
+**Google Cloud Run with Vertex AI (what the live demo uses).** No API key: the Cloud Run service account calls Gemini on Vertex AI, and usage is billed to your Google Cloud billing account.
 
 ```bash
-export GOOGLE_API_KEY=...
+gcloud config set project YOUR_PROJECT_ID
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com
+# the default compute service account needs two roles (newer projects have none)
+SA="serviceAccount:$(gcloud projects describe YOUR_PROJECT_ID --format='value(projectNumber)')-compute@developer.gserviceaccount.com"
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID --member="$SA" --role=roles/aiplatform.user
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID --member="$SA" --role=roles/run.builder
 ./deploy.sh
 ```
 
-This runs `gcloud run deploy` in `asia-south1` with one instance and 2 GiB of memory.
+`deploy.sh` deploys to `asia-south1` with one instance, 2 GiB of memory and a 300 second request timeout, and uses `gemini-3.5-flash-lite` from the `global` Vertex location (override with `GEMINI_MODEL`). If you would rather use an AI Studio key, `export GOOGLE_API_KEY=...` before `./deploy.sh` (never put it in a file in this repository).
+
+**Render (free, no credit card).** Push this repository to GitHub, then in Render choose New + > Blueprint and pick it. Render reads [`render.yaml`](render.yaml), builds the Dockerfile and asks for `GOOGLE_API_KEY`, which you enter in its dashboard. The free instance sleeps after about 15 idle minutes, and the in-memory index is lost when it sleeps, so index again after a wake-up.
 
 ## Limits
 
-- 60 questions and 10 index runs per IP per hour.
+- 60 questions and 10 index runs per IP per hour, and 300 questions per day across all visitors (`REPOSAGE_DAILY_ASK_LIMIT`), because the public demo's model calls are billed.
 - 500 indexable files per Repository, files up to 100 KB, secret shaped files never indexed.
 - Only `https://github.com/owner/name` URLs; clone depth 1.
 
@@ -88,5 +93,5 @@ This runs `gcloud run deploy` in `asia-south1` with one instance and 2 GiB of me
 - A single instance, and a public endpoint without authentication.
 - Only Python gets AST chunking; other languages use line windows.
 - ADK marks `SequentialAgent` and `LoopAgent` as deprecated in favour of `Workflow`; see [`docs/plans/BACKLOG.md`](docs/plans/BACKLOG.md).
-- The container image builds and boots (about 135 MB compressed, 640 MB unpacked) but has not been deployed to Cloud Run yet.
+- Deployed on Cloud Run (image about 135 MB compressed). The service is public, uses one instance, and keeps the index in memory.
 - Free-tier model quotas are small (roughly 15 requests per minute and a daily cap per model), and one agent question uses 5 to 20 model calls, so heavy use needs a paid key.

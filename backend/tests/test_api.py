@@ -139,3 +139,13 @@ def test_limiter_window_expires():
     assert limits.check("ip", "ask", 1, now=0)
     assert not limits.check("ip", "ask", 1, now=10)
     assert limits.check("ip", "ask", 1, now=3601)
+
+
+def test_global_daily_cap_applies_across_visitors(client, monkeypatch):
+    index(client)
+    monkeypatch.setattr(main, "DAILY_ASK_LIMIT", 2)
+    def ask(ip):
+        return client.post(
+            "/ask", json={"question": "login", "mode": "simple"}, headers={"X-Forwarded-For": ip}
+        ).status_code
+    assert [ask("1.1.1.1"), ask("2.2.2.2"), ask("3.3.3.3")] == [200, 200, 429]

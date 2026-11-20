@@ -60,8 +60,18 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+# Total questions per day across all visitors. The service is public and its
+# model calls are billed, so this caps the worst case regardless of how many
+# different IP addresses visit.
+DAILY_ASK_LIMIT = int(os.getenv("REPOSAGE_DAILY_ASK_LIMIT", "300"))
+
+
 def over_limit(request: Request, bucket: str) -> bool:
-    return not limits.check(client_ip(request), bucket, limits.LIMITS[bucket])
+    if not limits.check(client_ip(request), bucket, limits.LIMITS[bucket]):
+        return True
+    if bucket == "ask" and not limits.check("*", "ask-day", DAILY_ASK_LIMIT, window=86400):
+        return True
+    return False
 
 
 @app.get("/health")
@@ -134,7 +144,7 @@ async def ask(body: AskRequest, request: Request):
     if idx is None:
         return error(409, "No repository indexed yet. Index one first.")
     if over_limit(request, "ask"):
-        return error(429, "Question limit reached (60 per hour). Try again later.")
+        return error(429, "Question limit reached (60 per hour per visitor, or the daily limit for this demo). Try again later.")
     question = body.question.strip()
     if not question or body.mode not in ("agent", "simple"):
         return error(400, "Enter a question and use mode agent or simple.")
@@ -155,7 +165,7 @@ async def issue(body: IssueRequest, request: Request):
     if idx is None:
         return error(409, "No repository indexed yet. Index one first.")
     if over_limit(request, "ask"):
-        return error(429, "Question limit reached (60 per hour). Try again later.")
+        return error(429, "Question limit reached (60 per hour per visitor, or the daily limit for this demo). Try again later.")
     try:
         owner, name, _ = issues.parse_issue_url(body.issue_url)
     except issues.IssueError as e:
