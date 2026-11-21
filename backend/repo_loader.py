@@ -41,6 +41,8 @@ class RepoError(ValueError):
 
 def validate_repo_url(url):
     """Accept only https://github.com/owner/name. Returns (owner, name)."""
+    if not (url or "").strip():
+        raise RepoError("No link entered. Paste a public GitHub repository URL.")
     m = GITHUB_URL_RE.match((url or "").strip())
     if not m:
         raise RepoError("Enter a public GitHub URL like https://github.com/owner/name")

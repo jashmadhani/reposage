@@ -3,114 +3,149 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
   <title>RepoSage</title>
   <meta name="description" content="Ask any public GitHub repository a question, or turn an issue into a fix plan. Every claim cites exact lines that were verified.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+
   <header class="top">
-    <div class="brand">
+    <a class="brand" href="/" aria-label="RepoSage home">
       <span class="logo" aria-hidden="true">RS</span>
       <span class="brand-name">RepoSage</span>
-    </div>
+    </a>
     <a class="top-link" href="https://github.com/jashmadhani/reposage" target="_blank" rel="noopener noreferrer">GitHub</a>
   </header>
 
   <main>
-    <section class="hero">
-      <h1>Ask any GitHub repository. Get answers you can check.</h1>
-      <p class="lead">Every claim cites exact lines of code. A Reviewer agent re-reads each cited range before you see the answer.</p>
-      <ol class="steps" aria-label="How it works">
-        <li><span class="num">1</span><span><strong>Index</strong> a public repository</span></li>
-        <li><span class="num">2</span><span><strong>Ask</strong> a question, or paste an issue</span></li>
-        <li><span class="num">3</span><span><strong>Verify</strong> every citation on GitHub</span></li>
-      </ol>
+    <section class="hero t-stagger" id="hero">
+      <h1 class="t-stagger-line t-stagger-line--1">Ask any repository.</h1>
+      <p class="lead t-stagger-line t-stagger-line--2">Every answer cites the exact lines, and a Reviewer agent checks them first.</p>
     </section>
 
-    <section class="card" id="step-index" aria-labelledby="h-index">
-      <h2 id="h-index"><span class="num">1</span> Index a repository</h2>
-      <div class="row">
-        <input id="repo-url" type="text" placeholder="https://github.com/owner/name" aria-label="Repository URL" autocomplete="off" spellcheck="false">
-        <button id="index-btn" class="primary">Index Repository</button>
+    <!-- 1. Index -->
+    <section class="console" id="step-index" aria-label="Index a repository">
+      <div class="field">
+        <label class="sr-only" for="repo-url">Repository URL</label>
+        <input id="repo-url" type="text" placeholder="Paste a public GitHub repository URL" autocomplete="off" spellcheck="false">
+        <button id="index-btn" class="go" aria-label="Index repository" data-label="Index repository">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+        </button>
       </div>
-      <div class="chips" aria-label="Examples">
-        <span class="chips-label">Try</span>
+      <div class="meta-row">
+        <span class="mono-hint">enter index · esc clear</span>
+        <span id="status" class="status" role="status" aria-live="polite"></span>
+      </div>
+      <p id="index-error" class="field-error" role="alert"></p>
+      <div id="loader-index" class="loader-slot"></div>
+      <div class="chips" aria-label="Example repositories">
         <button class="chip" data-fill="repo-url" data-value="https://github.com/pallets/itsdangerous">pallets/itsdangerous</button>
         <button class="chip" data-fill="repo-url" data-value="https://github.com/pallets/click">pallets/click</button>
+        <button class="chip" data-fill="repo-url" data-value="https://github.com/jashmadhani/reposage">jashmadhani/reposage</button>
       </div>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="card locked" id="step-ask" aria-labelledby="h-ask">
-      <h2 id="h-ask"><span class="num">2</span> Ask or plan</h2>
-      <p id="lock-note" class="muted">Index a repository first.</p>
-
-      <div class="tabs" role="tablist">
-        <button id="tab-ask" role="tab" aria-selected="true" class="tab active">Ask a question</button>
-        <button id="tab-issue" role="tab" aria-selected="false" class="tab">Issue to Fix Plan</button>
+    <!-- 2. Ask or plan -->
+    <section class="console locked" id="step-ask" aria-label="Ask or plan">
+      <div class="console-head">
+        <div class="t-tabs" role="tablist" aria-label="Mode">
+          <span class="t-tabs-pill" aria-hidden="true"></span>
+          <button class="t-tab" id="tab-ask" role="tab" aria-selected="true" aria-controls="panel-ask">Ask</button>
+          <button class="t-tab" id="tab-issue" role="tab" tabindex="-1" aria-selected="false" aria-controls="panel-issue">Issue</button>
+        </div>
+        <p id="lock-note" class="mono-hint">index a repository first</p>
       </div>
 
-      <div id="panel-ask">
-        <div class="row">
-          <input id="question" type="text" placeholder="How does the signer create and verify a signature?" aria-label="Question" autocomplete="off" disabled>
-          <button id="ask-btn" class="primary" disabled>Ask</button>
+      <div id="panel-ask" class="panel" role="tabpanel" tabindex="0" aria-labelledby="tab-ask">
+        <div class="field">
+          <label class="sr-only" for="question">Question</label>
+          <input id="question" type="text" placeholder="How does the signer create and verify a signature?" autocomplete="off" disabled>
+          <button id="ask-btn" class="go" aria-label="Ask" data-label="Ask" disabled>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+          </button>
         </div>
-        <div class="options">
+        <div class="meta-row">
+          <span class="mono-hint">enter ask</span>
           <div class="segmented" role="radiogroup" aria-label="Mode">
             <input type="radio" name="mode" id="mode-agent" value="agent" checked><label for="mode-agent">Agent <small>verified</small></label>
             <input type="radio" name="mode" id="mode-simple" value="simple"><label for="mode-simple">Simple <small>fast</small></label>
           </div>
-          <div class="chips">
-            <span class="chips-label">Try</span>
-            <button class="chip" data-fill="question" data-value="How does the signer create and verify a signature?">signing</button>
-            <button class="chip" data-fill="question" data-value="What does BadSignature mean?">BadSignature</button>
-          </div>
+        </div>
+        <div class="chips" aria-label="Example questions">
+          <button class="chip" data-fill="question" data-value="How does the signer create and verify a signature?">How does signing work?</button>
+          <button class="chip" data-fill="question" data-value="What does BadSignature mean?">What is BadSignature?</button>
         </div>
       </div>
 
-      <div id="panel-issue" hidden>
-        <div class="row">
-          <input id="issue-url" type="text" placeholder="https://github.com/owner/name/issues/123" aria-label="Issue URL" autocomplete="off" spellcheck="false" disabled>
-          <button id="issue-btn" class="primary" disabled>Make Fix Plan</button>
+      <div id="panel-issue" class="panel" role="tabpanel" tabindex="0" aria-labelledby="tab-issue" hidden>
+        <div class="field">
+          <label class="sr-only" for="issue-url">Issue URL</label>
+          <input id="issue-url" type="text" placeholder="Paste a GitHub issue URL from the indexed repository" autocomplete="off" spellcheck="false" disabled>
+          <button id="issue-btn" class="go" aria-label="Make Fix Plan" data-label="Make Fix Plan" disabled>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+          </button>
         </div>
-        <div class="chips">
-          <span class="chips-label">Try</span>
+        <div class="meta-row">
+          <span class="mono-hint">enter make fix plan</span>
+          <span class="mono-hint">issue must belong to the indexed repository</span>
+        </div>
+        <div class="chips" aria-label="Example issue">
           <button class="chip" data-fill="issue-url" data-value="https://github.com/pallets/itsdangerous/issues/429">itsdangerous #429</button>
         </div>
-        <p class="muted small">The issue must belong to the repository you indexed.</p>
       </div>
+
+      <div id="loader-ask" class="loader-slot"></div>
     </section>
 
     <p id="error" class="error" role="alert"></p>
 
-    <section class="card result" id="result" hidden aria-live="polite">
-      <div class="result-head">
-        <h2 id="result-title">Answer</h2>
-        <button id="copy-btn" class="ghost">Copy</button>
-      </div>
-      <div id="answer" class="answer"></div>
+    <!-- Result -->
+    <p id="announce" class="sr-only" role="status" aria-live="polite"></p>
+    <section class="result" id="result" hidden>
+      <article class="card">
+        <div class="card-head">
+          <h2 id="result-title">Answer</h2>
+          <button id="copy-btn" class="ghost">Copy</button>
+        </div>
+        <div id="answer" class="answer"></div>
+        <div id="citations-box" hidden>
+          <h3>Verified citations</h3>
+          <p class="mono-hint">each range was re-read by the Reviewer. click to open the exact lines on GitHub</p>
+          <ul id="citations" class="cite-list t-stagger"></ul>
+        </div>
+      </article>
 
-      <div id="citations-box" hidden>
-        <h3>Verified citations</h3>
-        <p class="muted small">Each range was re-read by the Reviewer. Click to open the exact lines on GitHub.</p>
-        <ul id="citations" class="cite-list"></ul>
-      </div>
-
-      <details id="trace-box" hidden>
-        <summary>Trace <span class="muted small">what the agents did</span></summary>
-        <div id="trace-chips" class="trace-chips"></div>
-        <table>
-          <thead><tr><th>Agent</th><th>Step</th><th>Detail</th></tr></thead>
-          <tbody id="trace-steps"></tbody>
-        </table>
-      </details>
+      <article class="card" id="trace-card" hidden>
+        <div class="card-head">
+          <h2>Trace</h2>
+          <div id="trace-chips" class="trace-chips"></div>
+        </div>
+        <p class="mono-hint">what the agents did, replayed from this request</p>
+        <div class="t-reason" id="reason" aria-label="Agent steps">
+          <div class="t-reason-viewport">
+            <div class="t-reason-scroll" id="reason-scroll">
+              <div class="t-reason-text" id="reason-text"></div>
+            </div>
+          </div>
+        </div>
+        <details id="trace-box">
+          <summary>All steps</summary>
+          <table>
+            <thead><tr><th>Agent</th><th>Step</th><th>Detail</th></tr></thead>
+            <tbody id="trace-steps"></tbody>
+          </table>
+        </details>
+      </article>
     </section>
   </main>
 
   <footer class="foot">
-    <span>Public demo. Limits: 60 questions per visitor per hour and 300 per day in total.</span>
+    <span>Public demo. 60 questions per visitor per hour, 300 per day in total.</span>
   </footer>
 
+  <script src="bg.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
