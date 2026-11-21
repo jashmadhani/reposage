@@ -13,11 +13,13 @@
   --grid-line: rgba(0, 0, 0, 0.045);
   --card: rgba(255, 255, 255, 0.7);
   --field: rgba(255, 255, 255, 0.9);
-  --accent: #0f766e;
-  --dither-low: #a7ece0;
-  --dither-mid: #2bb5a5;
-  --dither-high: #0d6e66;
-  --accent-soft: rgba(15, 118, 110, 0.1);
+  --accent: #2430d8;
+  --dither-c0: #0a0a78;
+  --dither-c1: #2430ff;
+  --dither-c2: #9a4dff;
+  --dither-c3: #ffe83a;
+  --dither-c4: #ffffff;
+      --accent-soft: rgba(36, 48, 216, 0.1);
   --error: #b42318;
   --error-bg: rgba(180, 35, 24, 0.08);
   --researcher: #2b6bd8;
@@ -88,13 +90,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
   justify-content: space-between;
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
-.logo {
-  display: inline-grid; place-items: center; width: 30px; height: 30px;
-  border-radius: 10px; background: var(--ink); color: var(--bg);
-  font: 600 12px/1 var(--mono); letter-spacing: 0.02em;
-}
+.logo { display: block; width: 30px; height: 30px; flex: none; }
 .brand-name { font-weight: 600; letter-spacing: -0.01em; }
-.top-link { color: var(--ink-3); text-decoration: none; font-size: 14px; }
+.top-link { color: var(--ink); text-shadow: 0 0 8px #fff, 0 0 3px #fff; text-decoration: none; font-size: 14px; }
 .top-link:hover { color: var(--ink); }
 
 main { max-width: 820px; margin: 0 auto; padding: 7vh 24px 40px; }
@@ -339,7 +337,7 @@ tr.agent-researcher td:first-child { color: var(--researcher); }
 tr.agent-writer td:first-child { color: var(--writer); }
 tr.agent-reviewer td:first-child { color: var(--reviewer); }
 
-.foot { max-width: 820px; margin: 0 auto; padding: 0 24px 36px; color: #ffffff; text-shadow: 0 0 6px rgba(7, 70, 64, 0.8), 0 1px 2px rgba(7, 70, 64, 0.8); font: 400 12px/1.5 var(--mono); text-align: center; }
+.foot { max-width: 820px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink); text-shadow: 0 0 8px #fff, 0 0 3px #fff; font: 400 12px/1.5 var(--mono); text-align: center; }
 
 @media (max-width: 640px) {
   main { padding-top: 4vh; }
@@ -366,3 +364,13 @@ tr.agent-reviewer td:first-child { color: var(--reviewer); }
 
 .field-error { margin: 8px 12px 0; color: var(--error); font-size: 13.5px; }
 .field-error:empty { display: none; }
+
+/* Text reveal helpers (Transitions.dev feel): words and blocks rise in with a soft blur.
+   fill-mode "backwards" means no filter or transform is left on the element afterwards. */
+.t-stagger-line.word { display: inline-block; }
+.rise { animation: rise-in 560ms var(--stagger-ease) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(var(--stagger-distance)); filter: blur(var(--stagger-blur)); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+@media (prefers-reduced-motion: reduce) { .rise { animation: none; } }

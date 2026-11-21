@@ -4,8 +4,19 @@ const $ = (id) => document.getElementById(id);
 const CITE_RE = /([\w./-]+):(\d+)-(\d+)/g;
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
+const REVEAL_TEXT = new Set(["status", "index-error", "error", "lock-note"]);
+
+function rise(el, i = 0) {
+  el.style.setProperty("--i", String(i));
+  el.classList.remove("rise");
+  void el.offsetWidth; // restart the animation
+  el.classList.add("rise");
+}
+
 function setText(id, text) {
-  $(id).textContent = text;
+  const el = $(id);
+  el.textContent = text;
+  if (text && REVEAL_TEXT.has(id)) rise(el);
 }
 
 function friendly(message) {
@@ -292,6 +303,7 @@ function renderResult(title, data) {
   setText("announce", `${title} ready, ${nCites} verified citation${nCites === 1 ? "" : "s"}.`);
   $("trace-card").hidden = false;
   $("result").hidden = false;
+  document.querySelectorAll("#result .card").forEach((card, n) => rise(card, n));
   playReasoning(t.steps);
   $("result").scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth", block: "start" });
 }
@@ -398,4 +410,23 @@ $("issue-url").addEventListener("keydown", (e) => {
 
 // First paint: place the tab pill, then reveal the hero.
 selectTab("ask", false);
-reveal($("hero"));
+
+// Headline: one word at a time, then the sub line, the two cards and the footer.
+(function introReveal() {
+  const h1 = document.querySelector("#hero h1");
+  const words = h1.textContent.trim().split(/\s+/);
+  h1.classList.remove("t-stagger-line", "t-stagger-line--1");
+  h1.replaceChildren();
+  words.forEach((w, n) => {
+    const span = document.createElement("span");
+    span.className = "t-stagger-line word";
+    span.style.setProperty("--i", String(n));
+    span.textContent = w;
+    h1.append(span, document.createTextNode(n < words.length - 1 ? " " : ""));
+  });
+  document.querySelector("#hero .lead").style.setProperty("--i", String(words.length));
+  reveal($("hero"));
+  rise($("step-index"), words.length + 1);
+  rise($("step-ask"), words.length + 2);
+  rise(document.querySelector(".foot"), words.length + 3);
+})();

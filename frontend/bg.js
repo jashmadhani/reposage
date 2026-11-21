@@ -1,68 +1,158 @@
-// Ordered-dither background: a Bayer 8x8 threshold turns a soft light field into
-// very fine square dots (1px), in a three step ramp read from the CSS tokens
-// --dither-low / --dither-mid / --dither-high. The field is a single soft dome of
-// light rising from the bottom edge. It sways very slowly and nothing pulses.
-// Dots under the pointer brighten steadily. window.reposageBg.freeze() holds a
-// still frame (used once a repository link is submitted). Pure canvas 2D.
+// GPU dither background: a GLSL fragment shader computes a slow, domain-warped
+// colour flow and quantises it with an 8x8 ordered (Bayer) dither on a 3px grid,
+// into five stops read from --dither-c0 .. --dither-c4 (navy, blue, violet,
+// yellow, white). A few soft white blobs roam through it. Everything is a sum of
+// slow sines, so the motion is continuous and nothing pulses. The colours fade
+// toward white behind the header and headline so text stays readable. The
+// pointer pushes the colour toward the bright end. window.reposageBg.freeze()
+// holds a still frame (used once a repository link is submitted). Plain WebGL.
 (() => {
   const canvas = document.getElementById("bg");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const DOT = 1; // CSS pixels per dot
-  const FPS = 120; // runs at the display's refresh rate, up to 120
-  const INTENSITY = 1.0;
-  const POINTER_R = 190; // px
-  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
-  const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+  const gl = canvas.getContext("webgl", { alpha: false, antialias: false });
+  if (!gl) return;
 
-  // 8x8 Bayer matrix as thresholds in (0, 1).
-  const BAYER = new Float32Array(64);
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      const a = x ^ y;
-      let r = 0;
-      for (let i = 0; i < 3; i++) r = (r << 2) | (((y >> (2 - i)) & 1) << 1) | ((a >> (2 - i)) & 1);
-      BAYER[y * 8 + x] = (r + 0.5) / 64;
-    }
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const POINTER_R = 220; // CSS px
+
+  const VERT = "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }";
+  const FRAG = `
+precision highp float;
+uniform float uDpr, uTime, uPtrOn;
+uniform vec2 uSize, uPtr;
+uniform vec3 uC0, uC1, uC2, uC3, uC4;
+const float CELL = 3.0;
+const float PR = ${POINTER_R.toFixed(1)};
+
+// Ordered dither thresholds in [0, 1): 8x8 Bayer built from 2x2 steps.
+float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
+float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
+
+vec3 stop(float i) {
+  if (i < 0.5) return uC0;
+  if (i < 1.5) return uC1;
+  if (i < 2.5) return uC2;
+  if (i < 3.5) return uC3;
+  return uC4;
+}
+
+void main() {
+  vec2 frag = gl_FragCoord.xy / uDpr;           // CSS px, origin bottom left
+  vec2 cell = floor(frag / CELL);
+  vec2 c = (cell + 0.5) * CELL;
+  vec2 uv = c / uSize;
+  float aspect = uSize.x / uSize.y;
+  float yTop = 1.0 - uv.y;
+  float t = uTime * 0.32;
+
+  // A warped flow: the coordinates are pushed around twice by slow waves, then a
+  // few more waves are summed. Slow clocks keep the motion fluid.
+  vec2 p = vec2(uv.x * aspect, uv.y) * 2.3;
+  vec2 q = vec2(sin(p.y * 1.3 + t * 0.8) + sin(p.x * 0.9 - t * 0.6),
+                cos(p.x * 1.1 - t * 0.7) + cos(p.y * 0.8 + t * 0.5));
+  p += 0.55 * q;
+  vec2 r = vec2(sin(p.y * 1.1 - t * 0.5), cos(p.x * 1.2 + t * 0.45));
+  p += 0.35 * r;
+  float v = 0.5 + 0.42 * (0.5 * sin(p.x * 1.2 + t * 0.3) + 0.35 * sin(p.y * 1.4 - t * 0.25) + 0.25 * sin((p.x + p.y) * 0.9 + t * 0.2)) / 0.55;
+  v = smoothstep(0.05, 0.95, v);
+
+  // The pointer pulls nearby colour toward the bright end.
+  if (uPtrOn > 0.01) {
+    vec2 d = vec2(c.x - uPtr.x, yTop * uSize.y - uPtr.y);
+    float w = 1.0 - dot(d, d) / (PR * PR);
+    if (w > 0.0) v = min(1.0, v + uPtrOn * w * w * 0.4);
   }
 
-  let cw = 0, ch = 0, W = 0, H = 0;
-  let img = null, out = null;
-  let pal = [0, 0, 0, 0];
-  let raf = 0, lastDraw = 0, lastT = 0, frozen = false;
+  // Quantise across the five stops with the ordered dither.
+  float s = v * 4.0;
+  float i = floor(s);
+  if (s - i > bayer8(cell)) i += 1.0;
+  vec3 col = stop(min(i, 4.0));
+
+  // A little white roaming between them: three soft blobs on slow looping paths.
+  float white = 0.0;
+  for (int k = 0; k < 3; k++) {
+    float kf = float(k);
+    vec2 bp = vec2(0.5 + 0.42 * sin(t * (0.43 + 0.11 * kf) + kf * 2.1),
+                   0.5 + 0.36 * sin(t * (0.31 + 0.09 * kf) + kf * 1.3 + 0.7));
+    vec2 dd = vec2((uv.x - bp.x) * aspect, uv.y - bp.y);
+    white += exp(-dot(dd, dd) / 0.014);
+  }
+  if (clamp(white, 0.0, 1.0) * 0.95 > bayer8(cell + vec2(3.0, 5.0))) col = uC4;
+
+  // Calm the colour behind the header and the headline so text stays readable.
+  float colx = 1.0 - smoothstep(0.10, 0.36, abs(uv.x - 0.5));
+  float hero = 1.0 - smoothstep(0.20, 0.36, yTop);
+  float topband = 1.0 - smoothstep(0.06, 0.13, yTop);
+  float calm = max(max(colx * 0.18, colx * hero), topband * 0.9);
+  col = mix(col, vec3(1.0), calm * 0.78);
+
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+  function compile(type, src) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      console.warn("bg shader:", gl.getShaderInfoLog(sh));
+      return null;
+    }
+    return sh;
+  }
+  const vs = compile(gl.VERTEX_SHADER, VERT);
+  const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+  if (!vs || !fs) return;
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+  gl.useProgram(prog);
+
+  // One triangle that covers the whole canvas.
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, "p");
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {};
+  for (const n of ["uDpr", "uTime", "uPtrOn", "uSize", "uPtr", "uC0", "uC1", "uC2", "uC3", "uC4"]) U[n] = gl.getUniformLocation(prog, n);
+
+  let W = 0, H = 0, dpr = 1;
+  let raf = 0, lastT = 0, frozen = false;
   const ptr = { tx: -9999, ty: -9999, x: -9999, y: -9999, on: 0, target: 0 };
 
   function hexToRgb(hex) {
     let h = String(hex).trim().replace("#", "");
     if (h.length === 3) h = h.split("").map((c) => c + c).join("");
     const n = parseInt(h, 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
   }
 
-  // Colors come from CSS so the theme decides them.
+  // Colours come from CSS so the theme decides them.
   function readPalette() {
     const cs = getComputedStyle(document.documentElement);
-    const pack = (name, fallback) => {
-      const [r, g, b] = hexToRgb(cs.getPropertyValue(name) || fallback);
-      return (255 << 24) | (b << 16) | (g << 8) | r; // ABGR for a little endian Uint32 view
-    };
-    pal = [0, pack("--dither-low", "#a7ece0"), pack("--dither-mid", "#2bb5a5"), pack("--dither-high", "#0d6e66")];
+    const defaults = ["#0a0a78", "#2430ff", "#9a4dff", "#ffe83a", "#ffffff"];
+    defaults.forEach((fb, n) => gl.uniform3fv(U["uC" + n], hexToRgb(cs.getPropertyValue("--dither-c" + n) || fb)));
   }
 
   function resize() {
     W = window.innerWidth;
     H = window.innerHeight;
-    cw = Math.ceil(W / DOT);
-    ch = Math.ceil(H / DOT);
-    canvas.width = cw;
-    canvas.height = ch;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
     canvas.style.width = W + "px";
     canvas.style.height = H + "px";
-    canvas.style.imageRendering = "pixelated";
-    img = ctx.createImageData(cw, ch);
-    out = new Uint32Array(img.data.buffer);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform1f(U.uDpr, dpr);
+    gl.uniform2f(U.uSize, W, H);
     readPalette();
-    draw(4, 0);
+    draw(6, 0);
   }
 
   function draw(t, dt) {
@@ -73,55 +163,17 @@
     ptr.y += (ptr.ty - ptr.y) * k;
     ptr.on += (ptr.target - ptr.on) * (1 - Math.exp(-dt * 5));
 
-    // One dome of light on the bottom edge, swaying very slowly side to side.
-    const cx = W * (0.5 + 0.04 * Math.sin(t * 0.09));
-    const rx = W * 0.52;
-    const ry = H * 0.85;
-    const R2 = POINTER_R * POINTER_R;
-    const pOn = ptr.on;
-    const pcx = ptr.x, pcy = ptr.y;
-
-    let i = 0;
-    for (let y = 0; y < ch; y++) {
-      const py = y * DOT;
-      const ny = (py - H * 1.02) / ry;
-      const ny2 = ny * ny;
-      const dy = py - pcy;
-      const brow = (y & 7) * 8;
-      for (let x = 0; x < cw; x++, i++) {
-        const px = x * DOT;
-        const nx = (px - cx) / rx;
-        const g = 1 - (nx * nx + ny2);
-        let f = g > 0 ? g * Math.sqrt(g) * 1.1 : 0;
-
-        if (pOn > 0.01) {
-          const dx = px - pcx;
-          const d2 = dx * dx + dy * dy;
-          if (d2 < R2) {
-            const w = 1 - d2 / R2;
-            f += pOn * w * w * 0.55;
-          }
-        }
-
-        f *= INTENSITY;
-        if (f <= 0) { out[i] = 0; continue; }
-        if (f > 1) f = 1;
-        const s = f * 3;
-        let lvl = s | 0;
-        if (s - lvl > BAYER[brow + (x & 7)]) lvl++;
-        out[i] = lvl === 0 ? 0 : pal[lvl > 3 ? 3 : lvl];
-      }
-    }
-    ctx.putImageData(img, 0, 0);
+    gl.uniform1f(U.uTime, t);
+    gl.uniform1f(U.uPtrOn, ptr.on);
+    gl.uniform2f(U.uPtr, ptr.x, ptr.y);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
   function loop(now) {
     raf = requestAnimationFrame(loop);
-    if (now - lastDraw < 1000 / FPS - 2) return;
     const dt = Math.min(0.1, (now - (lastT || now)) / 1000);
-    lastDraw = now;
     lastT = now;
-    draw(now / 1000, dt);
+    draw(now / 1000, dt); // one draw per display frame, so up to 120 fps
   }
 
   function start() {
@@ -130,7 +182,7 @@
     if (frozen || reduceMotion.matches || document.hidden) {
       ptr.target = 0;
       ptr.on = 0;
-      draw(4, 0); // still frame
+      draw(6, 0); // still frame
       return;
     }
     raf = requestAnimationFrame(loop);
@@ -160,7 +212,6 @@
   });
   document.addEventListener("visibilitychange", start);
   reduceMotion.addEventListener("change", start);
-  darkQuery.addEventListener("change", () => { readPalette(); draw(4, 0); });
 
   window.reposageBg = { freeze };
   resize();
