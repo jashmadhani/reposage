@@ -6,11 +6,13 @@ Point RepoSage at any public GitHub repository. Ask a Question, or paste an Issu
 
 **Live:** https://reposage-983901098678.asia-south1.run.app (Google Cloud Run, Gemini on Vertex AI). Index a small public repository first, such as `https://github.com/pallets/itsdangerous`. It is a free demo with a daily question limit, so it may say "limit reached".
 
-## Watch the walkthrough (2 min 36 s)
+## Watch the walkthrough (2 min 4 s)
 
-[![Watch the RepoSage walkthrough: indexing a repository, asking a question, verifying a citation on GitHub, the Trace and a Fix Plan](docs/media/reposage-explainer-poster.jpg)](docs/media/reposage-explainer.mp4)
+<video src="https://github.com/jashmadhani/reposage/raw/main/docs/media/reposage-walkthrough.mp4" poster="https://github.com/jashmadhani/reposage/raw/main/docs/media/reposage-walkthrough-poster.jpg" controls width="100%"></video>
 
-A narrated tour of every feature, recorded from the live app: index a repository, ask in agent mode, click a citation to land on the exact lines on GitHub, read the Trace, and turn an issue into a Fix Plan. (The video shows the earlier, plainer interface; the features are the same.)
+If the player does not load, [open the video file](docs/media/reposage-walkthrough.mp4) directly.
+
+A narrated tour of the current interface, recorded from the live app, with a caption on every step: paste a repository, index it, ask a question, read the answer with its verified citations, open the Trace, and turn an issue into a Fix Plan. The narration is generated offline with the open source Kokoro voice model; nothing in the video is mocked.
 
 ## What makes it different
 
@@ -29,7 +31,7 @@ Browser ──> FastAPI (/ask or /issue) ──> Researcher ⇄ tools (search_co
 Browser <──────────────────────────── FastAPI
 ```
 
-Python 3.12, FastAPI, Google ADK (three agents), Gemini 2.5 Flash, Gemini embeddings, FAISS, Cloud Run. Python files are chunked by top level function and class; other files by 60 line windows with 15 lines of overlap. A `simple` mode (one retrieval plus one model call) is available for speed.
+Python 3.12, FastAPI, Google ADK (three agents), Gemini (the live demo runs `gemini-3.5-flash-lite` on Vertex AI), Gemini embeddings, FAISS, Cloud Run. The interface is plain HTML, CSS and JavaScript with a WebGL background; model output is written to the page with DOM nodes only, never as HTML. Python files are chunked by top level function and class; other files by 60 line windows with 15 lines of overlap. A `simple` mode (one retrieval plus one model call) is available for speed.
 
 Full design: [`docs/PRD.md`](docs/PRD.md), [`docs/TRD.md`](docs/TRD.md), [`GLOSSARY.md`](GLOSSARY.md).
 
@@ -94,8 +96,7 @@ gcloud projects add-iam-policy-binding YOUR_PROJECT_ID --member="$SA" --role=rol
 ## Known limitations
 
 - The index is in memory: a restart drops it, and only one Repository is indexed at a time.
-- A single instance, and a public endpoint without authentication.
+- A single instance, and a public endpoint without authentication. The container image is about 135 MB compressed.
 - Only Python gets AST chunking; other languages use line windows.
 - ADK marks `SequentialAgent` and `LoopAgent` as deprecated in favour of `Workflow`; see [`docs/plans/BACKLOG.md`](docs/plans/BACKLOG.md).
-- Deployed on Cloud Run (image about 135 MB compressed). The service is public, uses one instance, and keeps the index in memory.
 - Free-tier model quotas are small (roughly 15 requests per minute and a daily cap per model), and one agent question uses 5 to 20 model calls, so heavy use needs a paid key.
