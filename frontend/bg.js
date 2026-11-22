@@ -1,7 +1,7 @@
 // GPU dither background: a GLSL fragment shader computes a slow, domain-warped
 // colour flow and quantises it with an 8x8 ordered (Bayer) dither on a 3px grid,
 // into five stops read from --dither-c0 .. --dither-c4 (navy, blue, violet,
-// yellow, white). A few soft white blobs roam through it. Everything is a sum of
+// soft coral, white). A few soft white blobs roam through it. Everything is a sum of
 // slow sines, so the motion is continuous and nothing pulses. The colours fade
 // toward white behind the header and headline so text stays readable. The
 // pointer pushes the colour toward the bright end. window.reposageBg.freeze()
@@ -82,7 +82,7 @@ void main() {
   if (clamp(white, 0.0, 1.0) * 0.95 > bayer8(cell + vec2(3.0, 5.0))) col = uC4;
 
   // Calm the colour behind the header and the headline so text stays readable.
-  float colx = 1.0 - smoothstep(0.10, 0.36, abs(uv.x - 0.5));
+  float colx = 1.0 - smoothstep(0.12, 0.44, abs(uv.x - 0.5));
   float hero = 1.0 - smoothstep(0.20, 0.36, yTop);
   float topband = 1.0 - smoothstep(0.06, 0.13, yTop);
   float calm = max(max(colx * 0.18, colx * hero), topband * 0.9);
@@ -136,7 +136,7 @@ void main() {
   // Colours come from CSS so the theme decides them.
   function readPalette() {
     const cs = getComputedStyle(document.documentElement);
-    const defaults = ["#0a0a78", "#2430ff", "#9a4dff", "#ffe83a", "#ffffff"];
+    const defaults = ["#0a0a78", "#2430ff", "#9a4dff", "#ff9f86", "#ffffff"];
     defaults.forEach((fb, n) => gl.uniform3fv(U["uC" + n], hexToRgb(cs.getPropertyValue("--dither-c" + n) || fb)));
   }
 

@@ -27,7 +27,7 @@ function friendly(message) {
   if (/UNAVAILABLE|\b503\b/.test(m)) {
     return "The model is busy. Try again in a moment.";
   }
-  return m.length > 300 ? m.slice(0, 300) + "..." : m;
+  return m.length > 300 ? m.slice(0, 300) + "…" : m;
 }
 
 async function post(path, body) {
