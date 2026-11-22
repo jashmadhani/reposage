@@ -8,9 +8,9 @@ Point RepoSage at any public GitHub repository. Ask a Question, or paste an Issu
 
 ## Watch the walkthrough (2 min 4 s)
 
-<video src="https://github.com/jashmadhani/reposage/raw/main/docs/media/reposage-walkthrough.mp4" poster="https://github.com/jashmadhani/reposage/raw/main/docs/media/reposage-walkthrough-poster.jpg" controls width="100%"></video>
+https://github.com/user-attachments/assets/52c78b77-c01d-4fde-8443-3301226c929b
 
-If the player does not load, [open the video file](docs/media/reposage-walkthrough.mp4) directly.
+If the player does not load, [open the video file](docs/media/reposage-walkthrough.mp4) directly (the same video is stored in this repository).
 
 A narrated tour of the current interface, recorded from the live app, with a caption on every step: paste a repository, index it, ask a question, read the answer with its verified citations, open the Trace, and turn an issue into a Fix Plan. The narration is generated offline with the open source Kokoro voice model; nothing in the video is mocked.
 
