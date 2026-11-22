@@ -222,6 +222,42 @@ function stat(label, value) {
 }
 
 // Writes the answer line by line, each verified citation turned into a link.
+// Inline markup the models use: **bold**, `code` and path:start-end citations.
+// Everything is built with createElement and textContent, never innerHTML.
+function appendInline(parent, text, verified) {
+  const token = /\*\*(.+?)\*\*|`([^`]+)`|([\w./-]+:\d+-\d+)/g;
+  let last = 0;
+  for (const m of text.matchAll(token)) {
+    if (m.index > last) parent.append(document.createTextNode(text.slice(last, m.index)));
+    if (m[1] !== undefined) {
+      const el = document.createElement("strong");
+      appendInline(el, m[1], verified);
+      parent.append(el);
+    } else if (m[2] !== undefined) {
+      const el = document.createElement("code");
+      el.textContent = m[2];
+      parent.append(el);
+    } else {
+      const url = verified.get(m[3]);
+      if (url) {
+        const a = document.createElement("a");
+        a.className = "cite";
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = m[3];
+        parent.append(a);
+      } else {
+        parent.append(document.createTextNode(m[3]));
+      }
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parent.append(document.createTextNode(text.slice(last)));
+}
+
+// Writes the answer block by block: headings, list items and paragraphs, with
+// each verified citation turned into a link.
 function renderAnswer(text, citations) {
   const root = $("answer");
   root.replaceChildren();
@@ -232,27 +268,30 @@ function renderAnswer(text, citations) {
       verified.set(`${c.path}:${c.start}-${c.end}`, c.url);
     }
   }
-  text.split("\n").forEach((line, i) => {
+  let n = 0;
+  for (const raw of text.split("\n")) {
     const div = document.createElement("div");
-    div.className = "ln";
-    revealLine(div, i);
-    let last = 0;
-    for (const m of line.matchAll(CITE_RE)) {
-      const url = verified.get(m[0]);
-      if (!url) continue;
-      div.append(document.createTextNode(line.slice(last, m.index)));
-      const a = document.createElement("a");
-      a.className = "cite";
-      a.href = url;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      a.textContent = m[0];
-      div.append(a);
-      last = m.index + m[0].length;
+    const heading = raw.match(/^\s*#{1,6}\s+(.*)$/);
+    const item = raw.match(/^\s*(?:(\d+)\.|[-*])\s+(.*)$/);
+    if (!raw.trim()) {
+      div.className = "ln gap";
+    } else if (heading) {
+      div.className = "ln md-h";
+      appendInline(div, heading[1], verified);
+    } else if (item) {
+      div.className = "ln md-li";
+      const mark = document.createElement("span");
+      mark.className = "md-mark";
+      mark.textContent = item[1] ? item[1] + "." : "•";
+      div.append(mark);
+      appendInline(div, item[2], verified);
+    } else {
+      div.className = "ln";
+      appendInline(div, raw, verified);
     }
-    div.append(document.createTextNode(line.slice(last)));
+    revealLine(div, n++);
     root.append(div);
-  });
+  }
   reveal(root);
 }
 
